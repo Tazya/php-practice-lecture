@@ -1,0 +1,7 @@
+{
+    "name": "chernyshev/moder",
+    "type": "project",
+    "require": {
+        "laravel/lumen": "^9.0"
+    }
+}
