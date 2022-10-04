@@ -1,6 +1,11 @@
 {
     "name": "chernyshev/moder",
     "type": "project",
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
     "require": {
         "laravel/lumen": "^9.0"
     }

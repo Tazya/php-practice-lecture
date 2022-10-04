@@ -7,8 +7,10 @@ use Laravel\Lumen\Application;
 
 $app = new Application(dirname(__DIR__));
 
-$app->router->get('/', function () {
-    return 'Hello Kolesa Backend Upgrade!';
+$app->router->group([
+    'namespace' => 'App\Http\Controllers',
+], function ($router) {
+    $router->get('/', 'IndexController@index');
 });
 
 $app->router->get('/hello', function (Request $request) {
