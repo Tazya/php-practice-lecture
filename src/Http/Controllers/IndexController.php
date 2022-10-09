@@ -1,18 +1,13 @@
 <?php
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\View;
 use Laravel\Lumen\Routing\Controller as BaseController;
 
 class IndexController extends BaseController
 {
     public function index()
     {
-        return 'Hello Kolesa Backend Upgrade!';
+        return View::make('home');
     }
-
-//    public function hello(Request $request)
-//    {
-//        $name = $request->input('name');
-//    }
 }

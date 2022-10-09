@@ -268,7 +268,9 @@ flowchart LR
 ### Подключаем микрофреймворк Lumen.
 Воспользуемся фреймворком, как подключаемой библиотекой.
 Lumen поставляется с готовой файловой структурой, но мы не будем её использовать. 
-Напишем свою, для того, чтобы лучше понять процесс написания сервиса.
+Напишем свою упрощенную структуру, для того, чтобы лучше понять процесс написания сервиса.
+
+[Документация Lumen](https://lumen.laravel.com/docs/9.x/)
 
 Установим микрофреймворк Lumen в зависимости нашего проекта:
 ```bash
@@ -391,8 +393,55 @@ $app->router->group([
 $app->run();
 ```
 
-## Добавляем слой бизнес-логики
+## Слой View - рисуем web-страницы
+Для отображения HTML-страниц воспользуемся шаблонизатором [Blade](https://laravel.com/docs/9.x/views), идущим в комплекте c Lumen.
 
+Вернёмся к контроллеру главной страницы и подключим шаблон согласно [документации](https://laravel.com/docs/9.x/views#creating-and-rendering-views). 
+Вызываем метод make, класса `Illuminate\Support\Facades\View;`. Метод принимает название шаблона первым аргументом и массив параметров вторым.
 
+```php
+<?php
+namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\View;
+use Laravel\Lumen\Routing\Controller as BaseController;
+
+class IndexController extends BaseController
+{
+    public function index()
+    {
+        return View::make('home');
+    }
+}
+```
+
+Далее необходимо создать директорию, `resources/views` и в ней файл `home.blade.php`:
+```html
+<html lang="ru">
+    <body>
+        <h1>Добро пожаловать в админ-панель, {{ $userName }}</h1>
+    </body>
+</html>
+```
+`{{ $userName }}` - конструкция, позволяющая выводить переменные, переданные в контроллере:
+
+```php
+<?php
+namespace App\Http\Controllers;
+
+use Illuminate\Support\Facades\View;
+use Laravel\Lumen\Routing\Controller as BaseController;
+
+class IndexController extends BaseController
+{
+    public function index()
+    {
+        return View::make('home', ['userName' => 'Admin']);
+    }
+}
+```
+
+Теперь можно открыть главную страницу сайта http://localhsot:8000 и убедиться, что шаблон был обработан.
+
+****
 [^template]: **Шаблонизатор** - инструмент, позволяющий управлять HTML-разметкой с помощью кода. Используется для динамической подстановки данных в **шаблон**, который представляет собой HTML с дополнительным синтаксисом вставки данных. 
