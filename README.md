@@ -265,31 +265,32 @@ flowchart LR
 
 Созданием своего фреймворка - это круто и очень сильно расширяет кругозор. Но, к сожалению, не приблизит нас к решению задачи, которую мы поставили перед собой - написание админки для объявлений. Поэтому подключим один из популярных микрофреймворков и воспользуемся им для работы с HTTP.
 
-### Подключаем микрофреймворк Lumen.
-Воспользуемся фреймворком, как подключаемой библиотекой.
-Lumen поставляется с готовой файловой структурой, но мы не будем её использовать. 
-Напишем свою упрощенную структуру, для того, чтобы лучше понять процесс написания сервиса.
+### Подключаем микрофреймворк Slim.
+Slim - лёгкий микрофреймворк, содержащий только самые базовые инструменты, хорошо подходящий для обучения и маленьких проектов.
 
-[Документация Lumen](https://lumen.laravel.com/docs/9.x/)
-
-Установим микрофреймворк Lumen в зависимости нашего проекта:
+Воспользуемся инструкцией из [документации](https://www.slimframework.com/docs/v4/) и установим микрофреймворк в зависимости нашего проекта:
 ```bash
-composer require laravel/lumen
+composer require slim/slim slim/psr7 slim/http slim/twig-view
 ```
 
-Подключим автозагрузку и запустим приложение.
+Скопируем пример из документации в файл `public/index.php`:
 ```php
 // public/index.php
 <?php
 
-// Загружеаем автолоадер
-require_once __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
-// Подключаем неймспейс
-use Laravel\Lumen\Application;
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
+use Slim\Factory\AppFactory;
 
-// Создаём и возвращаем объект нашего приложения
-$app = new Application(dirname(__DIR__));
+$app = AppFactory::create();
+$app->addErrorMiddleware(true, true, true);
+
+$app->get('/', function (Request $request, Response $response, $args) {
+    $response->getBody()->write("Hello world!");
+    return $response;
+});
 
 $app->run();
 ```
@@ -297,38 +298,45 @@ $app->run();
 Теперь можно снова открыть в браузере http://localhost:8000 и убедиться, что приложение запущено.
 
 ## Слой Controller - обрабатываем вызовы
-Воспользуемся роутером и сделаем функции-обработчики для тех страниц, что мы сделали ранее. Обратите внимание на синтаксис передачи анонимной функции как параметра другой функции.
+Воспользуемся роутером микрофреймворка и сделаем функции-обработчики для тех страниц, что мы сделали ранее. Обратите внимание на синтаксис передачи анонимной функции как параметра другой функции.
 ```php
 <?php
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
-use Illuminate\Http\Request;
-use Laravel\Lumen\Application;
+use Slim\Factory\AppFactory;
+use Slim\Http\Response;
+use Slim\Http\ServerRequest;
 
-$app = new Application(dirname(__DIR__));
+$app = AppFactory::create();
+$app->addErrorMiddleware(true, true, true);
 
-$app->router->get('/', function () {
-    return 'Hello Kolesa Backend Upgrade!';
+$app->get('/', function (ServerRequest $request, Response $response) {
+    $response->getBody()->write('Hello Kolesa Backend Upgrade!');
+
+    return $response;
 });
 
-$app->router->get('/hello', function (Request $request) {
-    $name = $request->input('name', 'guest');
+$app->get('/hello', function (ServerRequest $request, Response $response) {
+    $name = $request->getQueryParam('name', 'guest');
+    $response->getBody()->write('Hello ' . $name);
 
-    return 'Hello ' . $name;
+    return $response;
 });
 
-$app->router->get('/server', function () {
-    // Пример протечки абстракции - прямое обращение к глобальной переменной
-    return response()->json($_SERVER);
+$app->get('/server', function (ServerRequest $request, Response $response) {
+    return $response->withJson($_SERVER);
 });
 
 $app->run();
 ```
-Теперь у нас появилось взаимодействие с новыми объектами, и мы больше не управляем напрямую заголовками и выводом, а используем методы, которые позволяют получить данные из запроса и записать их в ответ.
-Перенесём эти функции-контроллеры в отдельные классы, чтобы не писать всю логику контроллеров в одном месте.
+Появилось взаимодействие с новыми объектами `$request` и `$response`, которые абстрагируют в себе корректную обработку HTTP-запроса и генерацию HTTP-ответа.
+Теперь не нужно заботиться о том, как получать данные из QueryString или создавать заголовок, сообщающий о типе возвращаемого контента.
 
-Для начала добавим директорию ```src``` для нашего приложения, и создадим там поддиректории ```src/Http/Controllers```:
+Далее необходимо вынести обработку запросов в отдельные классы и методы. Это упростит поддержку и создание новых контроллеров.
+
+### Создание структуры проекта и подключение неймспейса
+Создадим директорию ```src``` для кода сервиса, и создадим там поддиректории ```src/Http/Controllers```:
 ```bash
 mkdir src
 mkdir src/Http
@@ -338,15 +346,18 @@ mkdir src/Http/Controllers
 Обновим наш comsposer.json секцией `autoload` для того, чтобы работала автозагрузка классов по стандарту PSR-4
 ```json
 {
-    "name": "chernyshev/moder",
+    "name": "example/moder",
     "type": "project",
     "autoload": {
         "psr-4": {
-            "App\\": "src/"
-        }
+             "App\\": "src/"
+       }
     },
     "require": {
-        "laravel/lumen": "^9.0"
+        "slim/slim": "^4.10",
+        "slim/psr7": "^1.5",
+        "slim/http": "^1.2",
+        "slim/twig-view": "^3.3"
     }
 }
 ```
@@ -356,92 +367,300 @@ mkdir src/Http/Controllers
 composer dump-autoload
 ```
 
+### Объявление классов контроллеров и их использование.
 В свежесозданную директорию добавим файл `IndexController.php` с классом `IndexController`
 ```php
 <?php
 namespace App\Http\Controllers;
 
-use Laravel\Lumen\Routing\Controller as BaseController;
+use Slim\Http\ServerRequest;
+use Slim\Http\Response;
 
-class IndexController extends BaseController
+class IndexController
 {
-    public function index()
+    public function home(ServerRequest $request, Response $response)
     {
-        return 'Hello Kolesa Backend Upgrade!';
+        $response->getBody()->write('Добро пожаловать в панель управления');
+
+        return $response;
     }
 }
 ```
 
-Теперь зарегистрируем неймспейс в роутере и укажем, что нужно вызвать метод index в IndexController, если вызывается корневой путь `/`:
+Далее, необходимо привязать контроллер к роуту, согласно [документации](https://www.slimframework.com/docs/v4/objects/routing.html#container-resolution):
 ```php
 // public/index.php
 <?php
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
-use Illuminate\Http\Request;
-use Laravel\Lumen\Application;
+// Подключенный неймспейс контроллеров
+use App\Http\Controllers;
+use Slim\Factory\AppFactory;
 
-$app = new Application(dirname(__DIR__));
+$app = AppFactory::create();
+$app->addErrorMiddleware(true, true, true);
 
-$app->router->group([
-    'namespace' => 'App\Http\Controllers',
-], function ($router) {
-    $router->get('/', 'IndexController@index');
-});
+// Первый аргумент - путь, второй - полное имя класса(FQDN) и название метода, который необходимо вызвать.
+$app->get('/', Controllers\IndexController::class . ':home');
+
+$app->run();
+
+```
+
+`::class` - выводит [полное имя класса](https://www.php.net/manual/ru/language.oop5.basic.php#language.oop5.basic.class.class), включая неймспейс.
+
+Снова открываем http://localhost:8000/ и убеждаемся, что наш контроллер подключен.
+
+## Слой View - рисуем web-страницы
+Для отображения HTML-страниц воспользуемся шаблонизатором [Twig](https://www.slimframework.com/docs/v4/features/templates.html#the-slimtwig-view-component), который мы уже установили.
+
+Первым делом регистрируем его в index.php:
+```php
+<?php
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use App\Http\Controllers;
+use Slim\Factory\AppFactory;
+use Slim\Views\Twig;
+use Slim\Views\TwigMiddleware;
+
+// Созадние объекта шаблонизатора Twig
+$twig = Twig::create(__DIR__ . '/../templates', ['cache' => false]);
+$app  = AppFactory::create();
+$app->addErrorMiddleware(true, true, true);
+// Регистрируем шаблонизатор в приложении
+$app->add(TwigMiddleware::create($app, $twig));
+
+$app->get('/', Controllers\IndexController::class . ':home');
 
 $app->run();
 ```
+Теперь напишем HTML-шаблоны `base.twig` и `home.twig` в директории `templates`.
+Шаблоны можно расширять, для того, чтобы не писать каждый раз всю обёртку.
 
-## Слой View - рисуем web-страницы
-Для отображения HTML-страниц воспользуемся шаблонизатором [Blade](https://laravel.com/docs/9.x/views), идущим в комплекте c Lumen.
-
-Вернёмся к контроллеру главной страницы и подключим шаблон согласно [документации](https://laravel.com/docs/9.x/views#creating-and-rendering-views). 
-Вызываем метод make, класса `Illuminate\Support\Facades\View;`. Метод принимает название шаблона первым аргументом и массив параметров вторым.
-
-```php
-<?php
-namespace App\Http\Controllers;
-
-use Illuminate\Support\Facades\View;
-use Laravel\Lumen\Routing\Controller as BaseController;
-
-class IndexController extends BaseController
-{
-    public function index()
-    {
-        return View::make('home');
-    }
-}
-```
-
-Далее необходимо создать директорию, `resources/views` и в ней файл `home.blade.php`:
+templates/base.twig:
 ```html
+<!DOCTYPE html>
 <html lang="ru">
-    <body>
-        <h1>Добро пожаловать в админ-панель, {{ $userName }}</h1>
-    </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Панель управления</title>
+</head>
+<body>
+{% block body %}{% endblock %}
+</body>
 </html>
 ```
-`{{ $userName }}` - конструкция, позволяющая выводить переменные, переданные в контроллере:
 
+templates/home.twig:
+```html
+{% extends "base.twig" %}
+
+{% block body %}
+    <h1>Добро пожаловать в панель управления, {{ name }}</h1>
+{% endblock %}
+```
+`{{ name }}` - Синтаксис для вывода переменных в Twig. Подробнее в [официальной документации](https://twig.symfony.com/doc/3.x/)
+
+Вызовем метод отрисовки шаблона в контроллере `IndexController`:
 ```php
 <?php
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\View;
-use Laravel\Lumen\Routing\Controller as BaseController;
+use Slim\Http\ServerRequest;
+use Slim\Http\Response;
+use Slim\Views\Twig;
 
-class IndexController extends BaseController
+class IndexController
 {
-    public function index()
+    public function home(ServerRequest $request, Response $response)
     {
-        return View::make('home', ['userName' => 'Admin']);
+        $view = Twig::fromRequest($request);
+
+        return $view->render($response, 'home.twig', ['name' => 'guest']);
     }
 }
 ```
 
-Теперь можно открыть главную страницу сайта http://localhsot:8000 и убедиться, что шаблон был обработан.
+
+Теперь можно открыть главную страницу сайта http://localhost:8000 и убедиться, что шаблон был обработан.
+Теперь в нашем приложении уже есть 2 слоя из паттерна MVC - View и Controller.
+
+Добавим  View-компонент нашей архитектуры в схему сервиса:
+
+```mermaid
+flowchart LR
+    index.php-->Request-->Router
+    Router-->Controller-->View
+    View-->Response
+```
+
+## Слой Model - пишем бизнес-логику
+В Model изолируется всё, что касается логики сервиса, который мы пишем. 
+Чем меньше он будет зависеть от слоя представления (View) и контроллера (Controller), тем проще нам будет расширять функционал сервиса.
+> Часто понятие модели из паттерна MVC путают с сущностями предметной области. В рамках практики такие сущности будем называть Entity.
+
+Создадим отдельную директорию для слоя логики: `src/Model` и в ней поддиректорию `Entity`
+
+Далее объявим класс объявления - `Advert` и создадим в нём свойства и методы для представления:
+- Заголовока
+- Описания
+- Цены
+
+```php
+<?php
+// src/Model/Entity/Advert.php
+
+namespace App\Model\Entity;
+
+class Advert
+{
+    private ?int    $id;
+    private ?string $title;
+    private ?string $description;
+    private ?int    $price;
+
+    public function __construct($data = [])
+    {
+        $this->id = $data['id'] ?? null;
+        $this->title = $data['title'] ?? null;
+        $this->description = $data['description'] ?? null;
+        $this->price = $data['price'] ?? null;
+    }
+
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getTitle(): string
+    {
+        return $this->title ?? '';
+    }
+
+    public function getDescription(): string
+    {
+        return $this->description ?? '';
+    }
+
+    public function getPrice(): ?int
+    {
+        return $this->price;
+    }
+}
+```
+
+## Хранение данных
+Теперь нужно подумать о том, где и как хранить наши объявления.
+PHP запускается на один запрос и все программы на нём по-умолчанию не имеют состояния (stateless).
+Поэтому мы не можем проигнорировать необходимость хранения данных, даже при большом желании.
+
+### Паттерн Repository.
+Хорошей практикой является абстрагирование получения данных от их использования.
+Внедрим для этого ещё один очень популярный паттерн проектирования **Repository**, который представляет собой класс, скрывающий в себе подробности реализации получения и сохранения данных.
+Код, который использует Репозиторий для получения данных, не знает и не должен ничего знать о том как хранятся данные. Под капотом это может быть любая БД, ORM, файл, сторонний сервис, кэш. Всё что угодно.
+
+Примеры использования репозитория:
+```php
+// Получить объект, представляющий кота
+$cat = $catRepository->getOne($catId);
+
+// Создать новый объект кота
+$ourCat = new Cat('Tom');
+
+// Сохранить новый объект кота
+$catRepository->save($ourCat);
+```
+
+### Реализация Repository
+Репозиторий объявлений будет представлять отдельный класс `AdvertRepository`
+Реализуем получение всех объявлений. Получать объявления мы будем из файла `storage/adverts.json`.
+использование json-файла как базы данных - очень простой, но не рабочий в рамках продакшна способ из-за отсутствия механизма конкурентного сохранения данных в файл.
+
+**src/Model/Repository/AdvertRepository.php:**
+```php
+<?php
+
+namespace App\Model\Repository;
+
+use App\Model\Entity\Advert;
+
+class AdvertRepository
+{
+    private const DB_PATH = '../storage/adverts.json';
+
+    public function getAll()
+    {
+        $result = [];
+
+        foreach ($this->getData() as $advertData) {
+            $result[] = new Advert($advertData);
+        }
+
+        return $result;
+    }
+
+    private function getData(): array
+    {
+        return json_decode(file_get_contents(self::DB_PATH), true) ?? [];
+    }
+}
+```
+
+- **file_get_contents()** - функция для получения содержимого файла.
+- **json_decode()** - функция, превращающая json в PHP-массив.
+
+Теперь создадим контроллер и HTML для вывода списка объявлений:
+
+**templates/adverts/index.twig:**
+```html
+{% extends "base.twig" %}
+
+{% block body %}
+    <h1>Список объявлений</h1>
+
+    <ul>
+        {% for advert in adverts %}
+            <li>{{ advert.getTitle() }}</li>
+        {% endfor %}
+    </ul>
+{% endblock %}
+```
+
+**src/Http/Controllers/AdvertController.php:**
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Model\Repository\AdvertRepository;
+use Slim\Http\ServerRequest;
+use Slim\Http\Response;
+use Slim\Views\Twig;
+
+class AdvertController
+{
+    public function index(ServerRequest $request, Response $response)
+    {
+        $advertsRepo = new AdvertRepository();
+        $adverts     = $advertsRepo->getAll();
+
+        $view = Twig::fromRequest($request);
+
+        return $view->render($response, 'adverts/index.twig', ['adverts' => $adverts]);
+    }
+}
+```
+
+**storage/adverts.json**
+
+### Создание и сохранение нового объявления
+Добавим в наш репозиторий новые методы, позволяющие сохранять объявления.
 
 ****
 [^template]: **Шаблонизатор** - инструмент, позволяющий управлять HTML-разметкой с помощью кода. Используется для динамической подстановки данных в **шаблон**, который представляет собой HTML с дополнительным синтаксисом вставки данных. 

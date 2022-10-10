@@ -1,13 +1,16 @@
 <?php
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\View;
-use Laravel\Lumen\Routing\Controller as BaseController;
+use Slim\Http\ServerRequest;
+use Slim\Http\Response;
+use Slim\Views\Twig;
 
-class IndexController extends BaseController
+class IndexController
 {
-    public function index()
+    public function home(ServerRequest $request, Response $response)
     {
-        return View::make('home');
+        $view = Twig::fromRequest($request);
+
+        return $view->render($response, 'home.twig', ['name' => 'guest']);
     }
 }
