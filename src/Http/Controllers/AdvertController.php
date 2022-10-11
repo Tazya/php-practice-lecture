@@ -18,4 +18,19 @@ class AdvertController
 
         return $view->render($response, 'adverts/index.twig', ['adverts' => $adverts]);
     }
+
+    public function newAdvert(ServerRequest $request, Response $response) {
+        $view = Twig::fromRequest($request);
+
+        return $view->render($response, 'adverts/new.twig');
+    }
+
+    public function create(ServerRequest $request, Response $response)
+    {
+        $repo        = new AdvertRepository();
+        $advertData  = $request->getParsedBodyParam('advert', []);
+        $repo->create($advertData);
+
+        return $response->withRedirect('/adverts');
+    }
 }

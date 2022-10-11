@@ -496,8 +496,10 @@ class IndexController
 ```mermaid
 flowchart LR
     index.php-->Request-->Router
-    Router-->Controller-->View
-    View-->Response
+    Router-->Controller
+    Controller-->View-->Controller
+    Controller-->Response
+    
 ```
 
 ## Слой Model - пишем бизнес-логику
@@ -598,14 +600,14 @@ class AdvertRepository
     {
         $result = [];
 
-        foreach ($this->getData() as $advertData) {
+        foreach ($this->getDB() as $advertData) {
             $result[] = new Advert($advertData);
         }
 
         return $result;
     }
 
-    private function getData(): array
+    private function getDB(): array
     {
         return json_decode(file_get_contents(self::DB_PATH), true) ?? [];
     }
@@ -614,6 +616,16 @@ class AdvertRepository
 
 - **file_get_contents()** - функция для получения содержимого файла.
 - **json_decode()** - функция, превращающая json в PHP-массив.
+
+**Обновляем схему, теперь в ней есть слой Model:**
+```mermaid
+flowchart LR
+    index.php-->Request-->Router
+    Router-->Controller-->Model-->Controller
+    Controller-->View-->Controller
+    Controller-->Response
+    
+```
 
 Теперь создадим контроллер и HTML для вывода списка объявлений:
 
@@ -660,7 +672,127 @@ class AdvertController
 **storage/adverts.json**
 
 ### Создание и сохранение нового объявления
-Добавим в наш репозиторий новые методы, позволяющие сохранять объявления.
+Добавим в наш репозиторий новые методы, позволяющие создавать и сохранять объявления.
+
+```php
+<?php
+
+namespace App\Model\Repository;
+
+use App\Model\Entity\Advert;
+
+class AdvertRepository
+{
+   // Другой код
+
+    public function create(array $advertData): Advert {
+        $db               = $this->getDB();
+        $increment        = array_key_last($db) + 1;
+        $advertData['id'] = $increment;
+        $db[$increment]   = $advertData;
+
+        $this->saveDB($db);
+
+        return new Advert($advertData);
+    }
+
+    private function getDB(): array
+    {
+        return json_decode(file_get_contents(self::DB_PATH), true) ?? [];
+    }
+
+    private function saveDB(array $data):void
+    {
+        file_put_contents(self::DB_PATH, json_encode($data));
+    }
+}
+```
+**src/Http/Controllers/AdvertController.php:**
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Model\Repository\AdvertRepository;
+use Slim\Http\ServerRequest;
+use Slim\Http\Response;
+use Slim\Views\Twig;
+
+class AdvertController
+{
+    // Другой код
+
+    public function newAdvert(ServerRequest $request, Response $response) {
+        $view = Twig::fromRequest($request);
+
+        return $view->render($response, 'adverts/new.twig');
+    }
+
+    public function create(ServerRequest $request, Response $response)
+    {
+        $repo        = new AdvertRepository();
+        $advertData  = $request->getParsedBodyParam('advert', []);
+        $repo->create($advertData);
+
+        return $response->withRedirect('/adverts');
+    }
+}
+```
+
+**public/index.php:**
+```php
+<?php
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use App\Http\Controllers;
+use Slim\Factory\AppFactory;
+use Slim\Views\Twig;
+use Slim\Views\TwigMiddleware;
+
+$twig = Twig::create(__DIR__ . '/../templates', ['cache' => false]);
+$app  = AppFactory::create();
+$app->addErrorMiddleware(true, true, true);
+$app->add(TwigMiddleware::create($app, $twig));
+
+$app->get('/', Controllers\IndexController::class . ':home');
+$app->get('/adverts', Controllers\AdvertController::class . ':index');
+$app->get('/adverts/new', Controllers\AdvertController::class . ':newAdvert');
+$app->post('/adverts', Controllers\AdvertController::class . ':create');
+
+$app->run();
+```
+
+**templates/adverts/new.twig**
+```html
+{% extends "base.twig" %}
+
+{% block body %}
+    <h1>Подать новое объявление</h1>
+
+    <form action="/adverts" method="post">
+        <div>
+            <label>
+                Заголовок *
+                <input type="text" name="advert[title]" value="{{ advert.title ?? '' }}">
+            </label>
+        </div>
+        <div>
+            <label>
+                Описание *
+                <input type="text" name="advert[description]" value="{{ advert.description ?? '' }}">
+            </label>
+        </div>
+        <div>
+            <label>
+                Цена *
+                <input type="number" name="advert[price]" value="{{ advert.price ?? 0 }}">
+            </label>
+        </div>
+        <input type="submit" value="Create">
+    </form>
+{% endblock %}
+```
 
 ****
 [^template]: **Шаблонизатор** - инструмент, позволяющий управлять HTML-разметкой с помощью кода. Используется для динамической подстановки данных в **шаблон**, который представляет собой HTML с дополнительным синтаксисом вставки данных. 
