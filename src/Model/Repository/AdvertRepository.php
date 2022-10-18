@@ -37,6 +37,6 @@ class AdvertRepository
 
     private function saveDB(array $data):void
     {
-        file_put_contents(self::DB_PATH, json_encode($data));
+        file_put_contents(self::DB_PATH, json_encode($data, JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT));
     }
 }
