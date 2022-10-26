@@ -999,6 +999,7 @@ class AdvertController
 - [Микрофреймворк Slim](https://www.slimframework.com/docs/v4/)
 - [Front Controller](https://en.wikipedia.org/wiki/Front_controller)
 - [PSR-7](https://www.php-fig.org/psr/psr-7/)
+- [RESTful Routing](https://www.learnhowtoprogram.com/c-and-net/basic-web-applications/introduction-to-restful-routing)
 - [Symfony Form Builder](https://symfony.com/doc/current/forms.html#building-forms)
 
 ****
