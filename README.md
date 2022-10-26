@@ -953,6 +953,38 @@ class AdvertController
 ```
 Теперь у нас есть расширяемая структура проекта, функционал сохранения объявлений, их валидация и отображение списка.
 
+Проект обрёл следующую структуру, и готов к дальнейшему расширению и улучшению:
+```
+├───README.md
+├───composer.json
+├───composer.lock
+├───public
+│       └───index.php
+├───src
+│       ├───Http
+│       │       └───Controllers
+│       │               ├───AdvertController.php
+│       │               └───IndexController.php
+│       └───Model
+│               ├───Entity
+│               │       └───Advert.php
+│               ├───Repository
+│               │       └───AdvertRepository.php
+│               └───Validators
+│                       ├───AdvertValidator.php
+│                       └───ValidatorInterface.php
+├───storage
+│       └───adverts.json
+├───templates
+│       ├───adverts
+│       │       ├───index.twig
+│       │       └───new.twig
+│       ├───base.twig
+│       └───home.twig
+└───vendor
+
+```
+
 ## Самостоятельная работа
 Для самостоятельной работы можно расширить функционал:
 - Реализовать просмотр страницы объявления
